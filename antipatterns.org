@@ -459,3 +459,89 @@ The structural diagram for this can be seen below
 
 
 \newpage
+
+* Polyaric functions (PF)
+
+It is a good desing rule to keep the amount of arguments to a minimum, not only for readability, 
+but also for maintenance reasons. Functions with too many arguments is a bad code smell 'Long Parameter List' ({{{REFAC()}}}).
+You will find very few (almost none!) functions in any language standard distribution that require more than three
+arguments.
+
+Good design mandates few arguments, try to keep your functions monadic (one argument), dyadic (two arguments), and in worst case triadic (three).
+({{{CLEANCODE()}}}).
+
+** Example of PF
+
+#+BEGIN_EXAMPLE
+set_up_user_connection(A,B,C,D,E,F,G,H) ->
+ %code.
+#+END_EXAMPLE
+
+Later used in the code as
+
+#+BEGIN_EXAMPLE
+ set_up_user_connection(R#rec.a,
+                        BlackListed,
+                        Codec,
+                        UserList,
+                        true,
+                        ?T1, 
+                        DcData,
+                        OARec)
+
+#+END_EXAMPLE
+
+** Cause of anti-pattern
+
+I imagine the thinking goes something like this: "There was a function there, doing what I wanted, almost. 
+So, I'll just tag along this extra data, and add another case/if clause." - this is again an example 
+of 'Shotgun Surgery' ({{{REFAC()}}}).
+
+** Solution
+
+Data that has coherence and used as one is better to pass as one, this way you do not need
+to change the arity of ALL functions which the data has to pass through. The next time this 
+package is given another unit of data, you can save yourself and everyone else the 
+time of changing all the function calls where the new explicit argument is needed. 
+In object orientation there is a refactoring to deal with this, called 'Introduce Parameter Object' ({{{REFAC()}}}).
+
+There are two good ways to do this, we can use records, or proplists.
+
+*** The record approach
+
+Define a private record with an intention-revealing name
+
+#+BEGIN_EXAMPLE
+-record(#user_conection_conf,
+         {user_name,
+          blacklisted_contacts,
+          negotiated_codec,
+          friends_list,
+          has_lte_support,
+          connection_side,
+          global_dcdata,
+          global_oarec}).
+#+END_EXAMPLE
+
+*** The proplist approach
+
+An alternative approach is to pass on a proplist, thus adding the intent
+for each argument explicitly in the Key part of the KV pair.
+
+#+BEGIN_EXAMPLE
+ [{user_name,R#rec.a},
+  {blacklisted_contacts,BlackListed},
+  {negotiated_codec, Codec},
+  {friends_list, UserList},
+  {has_lte_support,true},
+  {connection_side,?T1},
+  {global_dcdata,DcData},
+  {global_oarec,ObaRec}
+ ].
+#+END_EXAMPLE
+
+This way we avoid the same problem of having to add extra arguments to all functions.
+Of course, the difference here is that access time will be slower in comparison to using a record.
+On the upside, you can change the amount of parameters passed internally without disturbing records
+in datbases during upgrade.
+\newpage
