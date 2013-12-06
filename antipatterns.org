@@ -545,3 +545,88 @@ Of course, the difference here is that access time will be slower in comparison 
 On the upside, you can change the amount of parameters passed internally without disturbing records
 in datbases during upgrade.
 \newpage
+
+* Excessive feature disclosure (EFD)
+
+Excessive feature disclosure is a mix of the bad code smells 'Long Method' ({{{REFAC()}}}), 
+'Shotgun Surgery' ({{{REFAC()}}}), 'Inappropriate Intimacy' ({{{REFAC()}}}) and 'Mixing 
+Levels Of Abstraction' ({{{CLEANCODE()}}}).
+
+Manifested through huge functions with exuberant amounts of case/if statements, 
+predicates and equal amounts of incoherent code manipulating small parts of data.
+Sometimes the mysterious blocks are commented, and sometimes not. An analogy of such a 
+function is a recipe which varies wildly paragraph by paragraph, mentioning 2 spoons of sugar, 
+then delving into specific Amperes in stove conduits. Only to end with mind boggling thermodynamics
+on the topic of hot-air swirl patterns and the effect on crust forming.
+
+In essence, feature specific mainpulations are visible at the same level of abstraction
+as more generic code. It is not abstracted or hidden where necessary.
+
+** Example of EFD
+   
+#+BEGIN_EXAMPLE
+process_message(Message,C) ->
+ ok = ensure_there_is_a_free_channel(C),
+ ok = ensure_the_db_has_a_free_slot(C),
+ %% message reversal feature
+ Msg1 = case C#conf.reversal_turned_on of
+          true -> lists:reverse(Message);
+          false -> Message
+        end,
+ %% message truncation feature
+ Msg2 = case C#conf.truncation_turned_on of
+          true -> element(1,
+                     lists:foldr(
+                       fun(_,{Acc,1}) -> {Acc,0};
+                          (C,{Acc,0}) -> {[C|Acc],1}
+                       end,
+                       {[],0},
+                       Msg1));
+          false -> Msg1
+         end,
+  send_message_to_recipient(Msg2),
+  db:store_msg_with_ref(Msg2,C).
+#+END_EXAMPLE
+
+** Cause of anti-pattern
+
+The mindset of getting it done quick and dirty is the basis for the emergence of this pattern. Small increments of 
+code with precise predicate-pinballing will trigger the wanted code, while leaving the 
+rest untouched. Locally it is okay, but taking a step back - it becomes obvious that the surrounding context of 
+the increment is polluted. Reading such functions top top down is a true feat of mental parcour where each block 
+has no relation to the previous, and the whole thing makes no direct sense.
+ 
+** Solution
+
+A general good guideline from Software Craftsmanship is, when you feel something warants a comment to truly 
+express your intent: put it in a function. In object orientation we find the refactoring 'Extract Method' ({{{REFAC()}}})
+for just this purpose. Put the code into a function, and give it a name which discloses the intent.
+
+#+BEGIN_EXAMPLE
+process_message(Message,C) ->
+ ok = ensure_there_is_a_free_channel(C),
+ ok = ensure_the_db_has_a_free_slot(C),
+ Msg1 = feature:possibly_reverse(Message,C),
+ Msg2 = feature:possibly_truncate(Msg1,C),
+ send_message_to_recipient(Msg2),
+ db:store_msg_with_ref(Msg2,C).
+#+END_EXAMPLE
+
+Then we can try to reduce the amount of variable bindings as well
+
+#+BEGIN_EXAMPLE
+process_message(OldMessage,C) ->
+ ok = ensure_there_is_a_free_channel(C),
+ ok = ensure_the_db_has_a_free_slot(C),
+ SS = [OldMessage,C],
+ NewMsg = seq([fun feature:possibly_reverse/1,
+               fun feature:possibly_truncate/1
+              ],SS),
+ send_message_to_recipient(NewMsg),
+ db:store_msg_with_ref(Msg2,C).
+#+END_EXAMPLE
+
+Adding yet two, three, or five new features that each one manipulate the message is just new hooks into the 
+sequencing. However, the main point is the abstraction that now makes it easy to understand the main flow.
+
+\newpage
