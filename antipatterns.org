@@ -284,3 +284,54 @@ f(R) ->
 
 \newpage
 
+
+* Unnecessary Term Expansion (UTE)
+
+Unnecessary Term Expansions is the general cousin of URE, where function heads are made unreadable 
+by term expansion on any non-branching arguments in the function head.
+
+Thus, any term expansion which is not needed to branch on different function clauses contributes to 
+polluting the function head, making it hard for the developers to see which branches are taken in 
+what cases.
+
+** Example of UTE
+
+#+BEGIN_EXAMPLE
+f(#r{a = A,
+     b = [#s{a = [B|_], 
+             b = {C,D}=E} | _ ],
+     c = #t{a = [F|_],
+            b = G,
+            c = H}
+     d = [I,J,K]},
+   G) ->
+  % code here
+#+END_EXAMPLE
+
+Every time I encounter code like this, I always wonder which of the expanded terms causes the 
+function clause to match. All of them? None? Bad news seldom come alone, and it is not uncommon to 
+see 6 or 7 function clauses looking similar with many terms expanded. As with URE, this kind of 
+unnecessary expansions does not contribute to describe the intent with the code.
+
+** Cause of anti-pattern
+Pattern matching makes our lives easier, and it is a very strong feature of many functional programming languages. 
+Regrettfully it is easy to abuse, and this happens often when people get eager to 'just get it working'.
+
+** Solution
+
+Avoid expanding terms in the function head, unless the pattern matching is really
+needed to select the right function clause. A simple rule like this, could transform the 
+example into something as easy as
+
+#+BEGIN_EXAMPLE
+f(#r{}=R,G) ->
+  % code here
+#+END_EXAMPLE
+
+this directly demonstrates, that the important bit here is only that R is
+a record of type #r\{\} and nothing else. Likewise, if you really need to branch
+on something deeply nested, like the fact that there was an element in the 
+list of the field a in the record #t\{\} in the field c of the record #r\{\}, I would
+recommend using a macro - and giving the macro a name that conveys intent.
+
+\newpage
