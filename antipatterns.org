@@ -22,3 +22,175 @@ People tend to forget this in states of stress and pressure. But deviating from 
 good practices will not make it easier to work with the code. Anyone can write code 
 that the compiler will understand - the hardest part of the craft, which is where the
 true mastery comes into play - is to make it self evident and understandable for humans.
+* Variable Binding Ad Nauseum (VBAN)
+Repeated variable binding of the same variable with varying names 
+is the anti-pattern where one base-variable is bound e.g Name, then 
+two or more variables are bound with similar names or incremental 
+names e.g Name2, NewName. This is an error-prone programming style, 
+as someone might use Name3 when they ought to use Name4 or return 
+NewName when they should have returned NewName2. It is also an example 
+of code duplication ({{{REFAC()}}}).
+** Example of VBAN
+#+BEGIN_EXAMPLE
+f(OldA) ->
+ A = g(OldA),
+ A2 = h(A),
+ NewA = i(A2),
+ j(NewA).
+#+END_EXAMPLE
+** Cause of anti-pattern
+Functional languages which have variable binding, like Haskell and Erlang will
+not allow you to rebind that variable. This is a result of the lambda calculus
+heritage which many functional languages stem from.
+In an imperative language, this would be a matter or variable re-assignment.
+** Abstraction
+As the variables are threaded and used through several calls to functions,
+a pattern emerges; it becomes evident that we are 'threading' a state from 
+function call to function call.
+
+#+BEGIN_EXAMPLE
+   V_i = f_(i-1) ... f_0 V_0
+#+END_EXAMPLE
+
+If we rewrite the first example by collapsing the threading in multiple steps
+
+#+BEGIN_EXAMPLE
+%% STEP 1 --------------------------
+f(OldA) ->            
+ A = g(OldA),      
+ A2 = h(A),
+ NewA = i(A2),
+ j(NewA).
+
+%% STEP 2 --------------------------
+f(OldA) ->
+ A = g(OldA),
+ A2 = h(A),
+ j(i(A2)).
+
+%% STEP3 ---------------------------
+f(OldA) ->   
+ A = g(OldA),
+ j(i(h(A))). 
+
+%% STEP4 ---------------------------
+ f(OldA) ->
+  j(i(h(g(OldA)))).
+#+END_EXAMPLE
+
+using a cleaner composition notation this is now the same as 
+
+#+BEGIN_EXAMPLE
+f(OldA) ->
+ j i h g OldA.
+#+END_EXAMPLE
+
+** As part of argument chain
+
+It is seldom so easy as in the given example.
+The threaded and updated value is often part of a parameter list.
+Erlang has regretfully not partial function application ({{{PARTIAL()}}})
+and we have to think harder in order to successfully apply this pattern.
+
+Assume this is the case instead
+
+#+BEGIN_EXAMPLE
+f(OldA,B,C) ->
+ {A,D} = g(OldA,B),
+ {A2,E} = h(A,B,C,D),
+ j(A2,E).
+#+END_EXAMPLE
+
+We would like to lend something akin to a sequencing operator from the Haskell
+monad concept ({{{MONAD()}}}). Something that takes the result from a computation 
+and "threads" it into the next. One of the first easy things to do is to notice 
+that both results from g/2 and h/3 are passed onto the next function in the chain, 
+thus we restructure the arguments for this.
+
+#+BEGIN_EXAMPLE
+f(OldA,B,C) ->
+ R1 = g(OldA,B)
+ R2 = h(R1,B,C),
+ j(R2).
+#+END_EXAMPLE
+
+Next, remove the unnecessary temporary variable bindings 
+
+#+BEGIN_EXAMPLE
+f(OldA,B,C) ->
+ j(h(g(OldA,B),B,C))
+#+END_EXAMPLE
+
+there are still some values blocking us from tightening the parentheses to the right ",B,C))"
+how can we get rid of this? Apparently, they are needed to compute the result.
+
+#+BEGIN_EXAMPLE
+ OldA----
+         \ 
+ B------- g/2 ---h/3----j/1
+  \_____________/|
+                 |
+ C---------------
+#+END_EXAMPLE
+
+So, what if we always pass all the arguments in a Sequence Scope (SS), as well as the 
+previous result? We would then use a sequencer (seq/2), which binds together the output
+and input.
+
+#+BEGIN_EXAMPLE
+f(OldA,B,C) ->
+ SS = [OldA,B,C],
+ seq([fun([Ax,Bx,Cx]) -> g(Ax,Bx) end,
+      fun([Ax,Bx,Cx]) -> h(Ax,Bx,Cx) end,
+      fun([Ax|_])     -> j(Ax) end
+     ],
+     SS).
+#+END_EXAMPLE
+
+The key part of this seq/2 function is that it is implicit that the input argument is the 
+first element in the list, and this is always replaced by the result of the previous 
+function application.
+
+Next,it is a bit annoying that we need to do this fun/1 encapsulation. 
+Would it not be nicer if we just wrote something like
+
+#+BEGIN_EXAMPLE
+f(OldA,B,C) ->
+ SS = [OldA,B,C],
+ seq([fun g/1,
+      fun h/1,
+      fun j/1],
+     SS).
+#+END_EXAMPLE
+
+Yes we can, just wrap the functions with a new function using the same name
+and the new signature. the sequencer function seq would be defined as
+
+#+BEGIN_EXAMPLE
+seq([],[Result|_]) -> Result;
+seq([F|T],[_|T]=SS) ->
+ seq(T,[F(SS)|T]).
+#+END_EXAMPLE
+
+There is a lot to gain in using this 'sequence style'. The sequence style allows for very
+clear and descriptive code composed of small atomic functions operating on a uniform data-structure.
+
+Like this example
+
+#+BEGIN_EXAMPLE
+start() -> 
+    Steps = [fun set_log_path_and_reset_log_file/0,
+             fun log_start_of_service/0,
+             fun open_listening_socket/0,
+             fun accept_incoming_connection/1,
+             fun send_slim_protocol_version/1,
+             fun receive_commands_and_send_replies_until_bye/1,
+             fun close_connections/1,
+             fun log_end_of_service/0,
+             fun exit_with_code_zero/0
+            ],
+    seq:run_(Steps).
+#+END_EXAMPLE
+
+\newpage
+
