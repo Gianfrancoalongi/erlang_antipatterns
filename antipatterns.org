@@ -630,3 +630,80 @@ Adding yet two, three, or five new features that each one manipulate the message
 sequencing. However, the main point is the abstraction that now makes it easy to understand the main flow.
 
 \newpage
+
+* Mixing Pure and Side Effecting Code (MPSEC)
+Mixing functionally pure and side effecting code is a common
+and unfortunate antipattern as it makes the code hard to test
+and difficult to abstract.
+
+#+BEGIN_EXAMPLE
+  _______________
+ |.......o....o..|
+ |..oo...o..o....|
+ |.......o....o..|
+ |.....o......o..|
+ |..o.o..ooo.....|
+ |....o.o....o.o.|
+  ---------------
+
+  o = impurity    
+  . = pure code
+#+END_EXAMPLE
+
+Impure functions are usually related to reading/writing configuration data and 
+sending/receiving messages. It is not uncommon for such impurity to cluster in areas
+related to gate logic (testing for certain conditions to hold, such as input validation.
+
+It is better to localise side-effecting (impure) code to a few places in the code, 
+or to push the impure code out to the fringes of the system.
+
+** Cause of anti-pattern
+
+Lack of TDD will allow hard to test code to grow in your repository.
+
+** Solution
+
+Develop using TDD. Doing TDD will force you to decompose single operations as
+functions handling one part of the functionality: automatically separating the
+impurity from the purity.
+
+The outcome from such a design is a collection of pure libraries, which are utilized by a 
+few impure modules - essentially 'orchestrating' the flow. All of the pure libraries can be Unit tested 
+easily, while the few orchestrators can be tested using Component Tests. Mocking will also be easier as 
+the code is well contained in pure library functions.
+
+*** A system where impurity is pushed towards the fringes
+
+#+BEGIN_EXAMPLE
+  _______________
+ |             |I|
+ |  SYSTEM     |M|
+ |  COMPOSED   |P|
+ |  OF PURE    |U|
+ |  FUNCTIONS  |R|
+ |             |E|
+ |_____________|_|
+
+   ^            ^
+   |            |
+   |             \ More difficult to test
+   |              
+    \ Easy to Unit Test = Write with TDD
+
+#+END_EXAMPLE
+
+*** A system where impurity is clustered into a few points
+
+#+BEGIN_EXAMPLE
+  _______________
+ |...............|
+ |..oo...........|
+ |..oo.......oo..|
+ |...........oo..|
+ |...............|
+ |...............|
+  ---------------
+
+  o = impurity    
+  . = pure code
+#+END_EXAMPLE
