@@ -707,3 +707,60 @@ the code is well contained in pure library functions.
   o = impurity    
   . = pure code
 #+END_EXAMPLE
+
+\newpage
+* Implicit Branch Condition Encoded In Primitives (IBCEIP)
+
+Implicit Branch Conditin Encoded In Primitives is coupled to the bad code smell Primitive Obsession where
+primitive data types are used to represent domain ideas ({{{CLEANCODE()}}}). The difference is that in 
+IBCEIP, the branching reason is hidden and not made explicit with the help of the language.
+
+This makes for very hard to read code that can not be understood unless you have the full context
+and history of the program being developed in order to understand why certain primitives are patternmatched.
+
+** Example of IBCEIP
+
+Consider the following code that handles session restore on a system failure, in this particular case we will 
+look at how the different backup_session function clauses are chosen based on the user being behind nat or not.
+
+#+BEGIN_EXAMPLE
+backup_session(#user{ctd=#conn{ip=A,port=B},
+                     last_msg=[#msg{trp=#conn{orig_ip_text=C}}|_]}) 
+                     when A =/= C ->
+  %% This is NAT because the last seen message from the user has an 
+  %% originates ip text from another IP address than the user connected from. 
+  %% 
+   ....
+backup_session(User) ->
+   %% normal case
+   ....
+#+END_EXAMPLE
+
+Notice how the comment is used to tell us why this is a special case, this is a typical example of how
+comments are a deodorant - hiding a bad code smell. But we know that comments will rot and start to lie
+about reality when people update the code but does not update the comments.
+
+** Solution
+
+Add a function that takes a #user\{\} record and returns an appropriate representation of the branch condition.
+Use this value instead when patternmatching, put the value in the record, or pass it to the backup_session/1
+function, making it take 2 arguments instead.
+
+#+BEGIN_EXAMPLE
+determine_connectivity_mode(User) ->
+   #user{ctd=#conn{ip=A},last_msg=[#msg{trp=#conn{orig_ip_text=C}}|_]}) = User,
+   case A == C of  
+    true  -> normal;
+    false -> behind_nat.
+
+backup_session(User,behind_nat) ->
+   ...;
+backup_session(User,normal) ->
+   ....
+#+END_EXAMPLE
+
+Notice how the backup_session/2 code conveys intent in a much better way.
+The determine_connectivity_mode/1 function is also very easy to test and would be a perfect
+candidate function for TDD.
+
+
