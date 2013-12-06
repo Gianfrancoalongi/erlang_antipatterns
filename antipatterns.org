@@ -1,0 +1,24 @@
+#+MACRO: REFAC Martin Fowler 1999
+#+MACRO: CLEANCODE Robert C. Martin 2009
+#+MACRO: PARTIAL Partial Application, Wikipedia
+#+MACRO: MONAD Monad, Haskell Wiki
+#+MACRO: THECLEANCODER Robert C.Martin 2011
+#+OPTIONS: ^:{}
+
+* Introduction
+
+This is a collection of some common anti-patterns I have seen during my career
+and daily work. The problematic patterns I describe do not contribute 
+to maintainability or readability, they detereorate the quality of the code 
+from a maintainability aspect and will further increase the Read / Write ratio
+which tends to be substantial for any large system. I believe firmly in the
+pragmatic 3-princple
+
+1. Make it work
+2. Make it pretty
+3. If you need to - optimize it
+
+People tend to forget this in states of stress and pressure. But deviating from your
+good practices will not make it easier to work with the code. Anyone can write code 
+that the compiler will understand - the hardest part of the craft, which is where the
+true mastery comes into play - is to make it self evident and understandable for humans.
