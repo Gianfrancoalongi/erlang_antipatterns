@@ -194,3 +194,93 @@ start() ->
 
 \newpage
 
+* Unnecessary Record Expansion (URE)
+
+Pattern matching the values out of a record by record expansion
+is a quick way to get what you want. But it also causes a lot of noice
+and increases the amount of code the eyes need to travel to get into 
+the important bits. This contributes to the bad code smell  
+'Vertical Separation' ({{{CLEANCODE()}}}). Additionally, a record expansion 
+does not reveal any intent, it is just a method of accessing values for a later portion 
+of the code.
+
+Sometimes it is done in the function head, and sometimes immediately after.
+
+** Example of URE in function head
+#+BEGIN_EXAMPLE
+f(#r{a = Connection_Pool, 
+    b = Connection_Id,
+    c = #d{a = Msg_Queue},
+    f = Black_List} ->
+ g(Connection_Pool,
+   Connection_Id,
+   Msg_Queue,
+   Black_List).
+#+END_EXAMPLE
+
+** Example of URE in function body
+#+BEGIN_EXAMPLE
+f(R) ->
+ #r{a = Connection_Pool, 
+    b = Connection_Id,
+    c = #d{a = Msg_Queue},
+    f = Black_List} = R,
+ g(Connection_Pool,
+   Connection_Id,
+   Msg_Queue,
+   Black_List).
+#+END_EXAMPLE
+** Cause of anti-pattern
+
+The root of the problem is that we wish to utililize a subset of the available data 
+in our system and try to avoid passing a data-container to all parts of the code. 
+If the language would be strong enough to allow partial data selection using a lightweight
+notation, this would not have been a problem.
+
+** Solution
+
+What if we act lazily, accessing the record fields as we need them?
+
+#+BEGIN_EXAMPLE
+f(R) ->
+ g(R#r.a,R#r.b,(R#r.c)#d.a,R#r.f).
+#+END_EXAMPLE
+
+Notice that your eyes need to travel a much shorter distance,
+and you don't need to 'context switch' so gravely to maintain
+the context with the immediate relations of surrounding variables.
+As we do not occupy so much space per line now, we can easily take
+the cost of having more elaborate field names without risking
+to march to far of the screen to the right.
+
+#+BEGIN_EXAMPLE
+f(R) ->
+ g(R#r.connection_pool,
+   R#r.connection_id,
+   (R#r)#d.msg_queue,
+   R#r.black_list
+   ).
+#+END_EXAMPLE
+
+However, there is now code duplication in the accessing portion of the 
+record fields. We have to type, and read 'R#r.' 4 times. 
+
+The best solution is to adress the root cause of the problem, the partial
+data access and do so while revealing intent through a specific data subset
+extraction function and hide the Record type #r\{\} and #d\{\}.
+
+#+BEGIN_EXAMPLE
+f(R) ->
+ UCI = get_user_connection_info(R),
+ g(UCI).
+#+END_EXAMPLE
+
+which can be simplified into 
+
+#+BEGIN_EXAMPLE
+f(R) ->
+ g(get_user_connection_info(R)).
+#+END_EXAMPLE
+
+\newpage
+
