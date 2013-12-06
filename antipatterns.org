@@ -335,3 +335,127 @@ list of the field a in the record #t\{\} in the field c of the record #r\{\}, I 
 recommend using a macro - and giving the macro a name that conveys intent.
 
 \newpage
+
+* Sprinkling of Coherent Branching Logic (SCBL)
+
+Coherent Branching Logic (CBL) are all program flow control statements which cause branching in the code 
+based on inspection of the logically same entity. It becomes sprinkled when all this program flow control is not
+coherently placed in the same place, but sprinkled all over the code in different places. 
+This is a brother of the named bad code smell 'Shotgun Surgery' ({{{REFAC()}}}).
+
+** Example of SCBL
+
+In the following example, a message is to be sent out to a terminal,
+and stored in a database for security reasons (non-repudiation).
+
+#+BEGIN_EXAMPLE
+process_message(Message) ->
+ send_to_terminal(Message),
+ store_in_database(Message),
+ ok.
+
+send_to_terminal(Message) ->
+ Port = Message#msg.to_port,
+ IP = Mesage#msg.to_ip,
+ case Message#msg.payload of
+  [] -> ignore;
+  Text -> 
+    terminal_controller:send_to(Port,IP,Text)
+ end.
+
+store_in_database(Message) ->
+ RefNum = Message#.ref,
+ case Message#msg.payload of
+  [] -> ignore;
+  Text -> 
+    db:store_for_reference(RefNum,Text)
+ end.
+#+END_EXAMPLE
+
+In this case, the same logical entity Message#msg.payload is used for flow
+control in two different places. This is sprinkling of CBL.
+
+** Cause of anti-pattern
+
+Working with large systems can cause fear of changing structure or flexing the code base. 
+This can be caused by lack of Unit Tests to ensure integrity after restructuring or by lack of confidence. 
+'If you want your code to be flexible - you have to flex it!' ({{{THECLEANCODER()}}}).
+
+Thus, when causing a change in the code base, it is often easier to contain the changes in small increments 
+'only where needed'. Unfortunately, this is the wrong thing to do as the end system in such a methodology 
+will be a patchwork monster of a thousand grouped and unrelated flow control blocks.
+
+** Solution
+
+A better way to write it would have been to branch as early as possible on 
+the control variable in question (Message#msg.payload) and restructure any
+needed logic.
+
+#+BEGIN_EXAMPLE
+process_message(Msg) when Msg#msg.payload == [] ->  
+ ok;
+process_message(Msg) ->
+ send_to_terminal(Msg),
+ store_in_database(Msg),
+ ok.
+
+send_to_terminal(Message) ->
+ Port = Message#msg.to_port,
+ IP = Mesage#msg.to_ip,
+ Text = Message#msg.payload,
+ terminal_controller:send_to(Port,IP,Text).
+
+store_in_database(Message) ->
+ RefNum = Message#.ref,
+ Text = Message#msg.payload,
+ db:store_for_reference(RefNum,Text).
+#+END_EXAMPLE
+
+Further, we could abstract the payload type if we want to and make sure it's either undefined or a 
+structure of any kind. This way we may at any time change the internal representation of the payload, 
+we say that the payload implementation is transparent as we can change it at any time.
+
+#+BEGIN_EXAMPLE
+process_message(#msg{payload = ?NONE}) -> ok;
+process_message(Message) ->
+ send_to_terminal(Message),
+ store_in_database(Message),
+ ok.
+
+send_to_terminal(Msg) ->
+ terminal_controller:send_to(Msg#msg.to_port,
+                             Msg#msg.to_ip,
+                             Msg#msg.payload).
+
+store_in_database(Msg) ->
+ db:store_for_reference(Msg#msg.reference_number,
+                        Msg#msg.payload).
+#+END_EXAMPLE
+
+The structural diagram for this can be seen below 
+(legend FCL(X) for Flow Control Logic on X) and (.) for program flow paths.
+
+#+BEGIN_EXAMPLE
+ module a.erl         localizing all 
+ with SCBL            CBL in a.erl
+ ___________           ____________
+| .....      |        |......      | 
+|     .      |        |     .      |
+| ..FCL(X).  |        |  FCL(X)..  |
+| .       .  |        |  .      .  |
+| .       .  |        |  .      .  |
+| .........  |        |  ........  |
+|     .      |        |     .    __|
+|     .      |        |     .   | /
+|     .      |        |_________|/
+| ..FCL(X).  |
+| .       .  |
+| .       .  |
+| .........  |
+|     .    __|
+|     .   | / 
+|_________|/  
+#+END_EXAMPLE
+
+
+\newpage
