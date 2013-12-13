@@ -854,3 +854,59 @@ data in D or Omega.
    \--> f_n-----------/
 
 #+END_EXAMPLE
+
+*** The problem of passing and updating data
+
+We know that all functions f_i in [F] passed to Seq will most likely not operate on the same data.
+The naive way is to pass one large data structure to each function f_i, thus creating a uniform set of functions
+with arity 1, where each one receives and returns the same data structure, but with some minor changes.
+If we choose such an approach, the functions that are part of f_p and f_m will return an updated version of the data
+structure, but the f_n type functions will pass the original data structure through - effectively f_n becomes identity
+to the data structure.
+
+#+BEGIN_EXAMPLE
+seq([fun f_p/1,
+     fun f_m/1,
+     fun f_n/1
+    ], Data).
+
+f_p(D#d{b=B,d=D}) ->
+  D#d{z=B+D}.
+
+f_m(D#d{e=E,f=F,k=K}) ->
+  a ! {E,F,K},
+  D#d{x = E*F - K}.
+
+f_n(D#d{f=F}) ->
+  a ! F,
+  D.
+#+END_EXAMPLE
+
+However, this is not ideal as it makes us believe that all data is needed for each function, and also makes 
+tracing intractable due to large data sets being printed onto the screen. This also causes a deeper problem: artificial
+dependency through coupling. In reality, we know that the functions need a coherent subset of the data, 
+but we do not really care how this data is passed to our calculating functions.
+
+What if we could write the functions in this way instead?
+
+#+BEGIN_EXAMPLE
+seq([fun f_p/1,
+     fun f_m/1,
+     fun f_n/1
+    ], Data).
+
+f_p([B,D]) ->
+  B+D.
+
+f_m([E,F,K]) ->
+  a ! {E,F,K},
+  E*F - K.
+
+f_n([F]) ->
+  a ! F.
+#+END_EXAMPLE
+
+They certainly look cleaner, but how shall we now handle the data passing of the right data and the data updating of the 
+right data in D?
+
+
