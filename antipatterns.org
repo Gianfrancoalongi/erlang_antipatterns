@@ -1036,3 +1036,178 @@ using the data which is absolutely essential. We can exchang the data-carrying t
 to whatever, and we only need to make modifications in the $get_{f_i}$ and $update_{f_i}$ functions and the 
 calculations are kept intact. We have now made the method with which we make data cohesive - totally transparent
 to our calculations and removed all traces of coupling from them.
+\newpage
+* Not an Antipattern - (Rec)ursive
+
+Seq is as the name describes sequential, and is not intended for recursive computations.
+For this, we introduce rec. Rec takes a list of functions, a boolean predicate P $\in f_p$ and
+some initial data.
+
+** Rec 
+#+BEGIN_EXAMPLE
+Rec :: [F] x P x D -> D
+#+END_EXAMPLE
+
+we can model rec with the use of seq, the transformation will be shown in steps.
+First, lets start by drawing the call tree of rec, it is reasonable that the predicate
+is a stop-condition which is always evaluated first. If the result is 't', the recursion
+ends, returning the data. If the result is 'f', the recursion continues.
+
+#+BEGIN_EXAMPLE
+   P D <---------------------
+    |  \                     \
+    |t  \f                   |
+    V    V                  /
+   D      D' = f_1...f_n D--
+#+END_EXAMPLE
+
+Now, it is trivial to realize that the call sequence $f_1$ ... $f_n$ on D 
+can be replaced with seq in an elegant manner
+
+#+BEGIN_EXAMPLE
+   P D <----------
+    |  \           \
+    |t  \f          |
+    V    V         /
+   D      seq F D -
+#+END_EXAMPLE
+
+we can now therefore name this recursive structure rec, using Haskell notation 
+rec would be written in the following manner, assuming seq is already defined.
+
+#+BEGIN_EXAMPLE
+rec f p d  | p d  = d
+           | else = rec f p (seq f d)
+#+END_EXAMPLE
+
+Notice that rec never needs to observe the functions $f_i \in$ [F]. Of course, 
+it shall be said that all $f_i \in$ [F] can in turn utilize both rec and sec style
+programming without problems. 
+
+*** Echo Server Example
+But first we shall look at how to utilize a rec style
+recursion, given a semi-interesting problem like a small reverse-echo server handling one
+connection at a time - until someone sends the keyword 'die'
+
+#+BEGIN_EXAMPLE
+echo_server() ->
+  {ok,Sock} = gen_tcp:listen(5055,[{active,false}]),
+  echo(Sock).
+
+echo(Sock) ->
+  {ok,ASock} = gen_tcp:accept(Sock),
+  {ok,Bin} = gen_tcp:recv(ASock,0),
+  Msg = binary_to_list(Bin),
+  gen_tcp:send(ASock,lists:reverse(Msg)),
+  gen_tcp:close(ASock),
+  case Msg of
+    "die" ->
+         ok;
+     _ ->  
+         echo(Sock)
+  end.
+#+END_EXAMPLE
+
+It is very simple to realize that the end condition is that we recieved "die".
+Thus, received == "die" will be the predicate.
+
+#+BEGIN_EXAMPLE
+stop_if_received_die(S) -> 
+   S#state.received == "die".
+#+END_EXAMPLE
+
+Next we break the flow into it's component parts, we receive a message,
+we reverse it, send it back, and close the connection.
+
+#+BEGIN_EXAMPLE
+receive_message_from_client(S) ->
+  {ok,ASock} = gen_tcp:accept(S#state.sock),
+  {ok,Binary} = gen_tcp:recv(ASock,0),
+  S#state{accept_socket = ASock, received = binary_to_list(Binary)}.
+
+reverse_message(S) ->
+  S#state{msg = lists:reverse(S#state.received)}.
+
+send_back_message(S) ->
+  gen_tcp:send(S#state.accept_socket,S#state.msg),
+  S.
+
+close_the_connection(S) ->
+  gen_tcp:close(S#state.accept_socket),
+  S.
+#+END_EXAMPLE
+
+we can now write our echo sever using rec (which internally utilizes seq for the sequencing of the component steps).
+
+#+BEGIN_EXAMPLE
+echo_server() ->
+  {ok,Sock} = gen_tcp:listen(5055,[{active,false}]),
+  Data = #state{sock=Sock},
+  rec([fun receive_message_from_client/1,
+       fun reverse_message/1,
+       fun send_back_message/1,
+       fun close_the_connection/1],
+       fun stop_if_received_die/1
+       Data).
+
+stop_if_received_die(S) -> 
+   S#state.received == "die".
+
+receive_message_from_client(S) ->
+  {ok,ASock} = gen_tcp:accept(S#state.sock),
+  {ok,Binary} = gen_tcp:recv(ASock,0),
+  S#state{accept_socket = ASock, received = binary_to_list(Binary)}.
+
+reverse_message(S) ->
+  S#state{msg = lists:reverse(S#state.received)}.
+
+send_back_message(S) ->
+  gen_tcp:send(S#state.accept_socket,S#state.msg),
+  S.
+
+close_the_connection(S) ->
+  gen_tcp:close(S#state.accept_socket),
+  S.
+#+END_EXAMPLE
+
+*** Simplifies extendability
+
+The point here is that we can very quickly get a very good understanding of the echo_servers 
+inner workings at a glance. Only by reading the names of the functions in one quick succession. 
+We can also easily Unit Test each seq function which the rec will utilize. Granted, it looks like 
+we have more code, but it is very easy to extend, just add another function in the appropriate place 
+in the call chain. It is also easy to isolate and correct bugs, each component function is short and 
+easily understood.
+
+
+*** Simplifies accelerated comprehension
+
+One of the main benefits is that rec/seq style allows us to cognitively operate on an more abstract
+level when comprehending flow, and delve into details when it is necessary. This is in stark contrast
+to 'normal' non-rec/seq style where you need to pass over details in order to comprehend general flow.
+
+As large legacy systems accumulate more and more logic, it is of great interest to have a style
+and design that facilitates quick comprehension without forcing the developers to understand small
+insignificant details to get the whole picture. When it comes to quickly understanding flow and even 
+more importantly the 'intent' (the why) I am sure you would rather read this
+
+#+BEGIN_EXAMPLE
+  [fun receive_message_from_client/1,
+   fun reverse_message/1,
+   fun send_back_message/1,
+   fun close_the_connection/1]
+#+END_EXAMPLE
+
+than reading this
+
+#+BEGIN_EXAMPLE
+  {ok,ASock} = gen_tcp:accept(Sock),
+  {ok,Bin} = gen_tcp:recv(ASock,0),
+  Msg = binary_to_list(Bin),
+  gen_tcp:send(ASock,lists:reverse(Msg)),
+  gen_tcp:close(ASock),
+#+END_EXAMPLE
+
+when trying to understand a general flow in a new module you have never seen.
+Another point worth noting is that this echo server is quite trivial, so often 
+the gritty details will likely be worse than this.
