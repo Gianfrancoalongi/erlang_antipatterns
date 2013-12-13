@@ -768,7 +768,7 @@ candidate function for TDD.
  
 In the chapter Variable Binding ad Nauseum, we touched on the subject of seq style programming.
 This chapter explores the seq concept further and lays the foundation for the theory needed when analysing this
-further into the rec style (a cousin of seq that allows for an elegant recursive programming style).
+deeper into the rec style (a cousin of seq that allows for an elegant recursive programming style).
 
 ** Seq
 Seq takes a list of functions, some initial data
@@ -841,12 +841,12 @@ send_msg(Msg) ->
 Not only do we observe this benefit, we also notice that collapsing the nesting increases maintainability 
 and allows for a programming style where the underlying, hidden logic becomes visible and available.
 See the example code in the end of the VBAN chapter as an example.
-
+\newpage
 *** Function families
 
-Every function F which is passed to Seq can be classified as beloning to one of three function families f_p, f_m or f_n.
+Every function $f_i \in$ [F] which is passed to Seq can be classified as beloning to one of three function families $f_p, f_m or f_n$.
 
-**** f_p - Pure family 
+**** $f_p$ - Pure family 
 This is a functionally pure function, the return value is used to update the input data to Seq on which we fold our
 functions. The only reason for using this function is for the pure calculation done with the use of the input data that
 is sent to it.
@@ -856,10 +856,10 @@ f(X) ->
    X + 1.
 #+END_EXAMPLE
 
-**** f_m - Mixed family
+**** $f_m$ - Mixed family
 This is an functionally impure family of functions, meaning that they have side effects, but the returned 
 value is still of interest for the next function in seq. As this has a side-effect, we can think of this family
-of functions as updating an implicit global state (omega). 
+of functions as updating an implicit global state $\Omega$. 
 
 #+BEGIN_EXAMPLE
 f(X) ->
@@ -867,7 +867,7 @@ f(X) ->
   X + 1.
 #+END_EXAMPLE
 
-**** f_n - Nullifier family
+**** $f_n$ - Nullifier family
 This is a family of functions which has an unused return value, meaning we do not care about the return value of the
 function. The function is only invoked due to the side effects of the function. Thus, the result is nullified in the 
 eyes of the next function to be invoked in the seq chain.
@@ -877,21 +877,13 @@ f(X) ->
   a ! X.
 #+END_EXAMPLE
 
-
-
-
-
-
-
-
-
-
+\newpage
 *** Function class family diagram 
 
 All families relate to the Seq input data D and the global state Omega in some way.
 In the diagram below, an arrow from D -> to a family means that this family uses the data D for its calculation.
-An arrow from a family f_m -> to either D or Omega means that this family has a return value that updates the 
-data in D or Omega.
+An arrow from a family $f_m$ -> to either D or $\Omega$ means that this family has a return value that updates the 
+data in D or $\Omega$.
 
 #+BEGIN_EXAMPLE
 
@@ -907,11 +899,11 @@ data in D or Omega.
 
 *** The problem of passing and updating data
 
-We know that all functions f_i $\in$ [F] passed to Seq will most likely not operate on the same data.
-The naive way is to pass one large data structure to each function f_i, thus creating a uniform set of functions
+We know that all functions $f_i \in$ [F] passed to Seq will most likely not operate on the same data.
+The naive way is to pass one large data structure to each function $f_i$, thus creating a uniform set of functions
 with arity 1, where each one receives and returns the same data structure, but with some minor changes.
-If we choose such an approach, the functions that are part of f_p and f_m will return an updated version of the data
-structure, but the f_n type functions will pass the original data structure through - effectively f_n becomes identity
+If we choose such an approach, the functions that are part of $f_p$ and $f_m$ will return an updated version of the data
+structure, but the $f_n$ type functions will pass the original data structure through - effectively $f_n$ becomes identity
 to the data structure.
 
 #+BEGIN_EXAMPLE
@@ -932,7 +924,7 @@ f_n(D#d{f=F}) ->
   D.
 #+END_EXAMPLE
 
-However, this is not ideal as it makes us believe that all data is needed for each function, and also makes 
+However, this is not ideal as it programmatically implies that all data is needed for each function, and also makes 
 tracing intractable due to large data sets being printed onto the screen. This also causes a deeper problem: artificial
 dependency through coupling. In reality, we know that the functions need a coherent subset of the data, 
 but we do not really care how this data is passed to our calculating functions.
@@ -961,7 +953,7 @@ right data in D? This is where we need function specific get and update function
 values from/to the record #d\{\\} must now be handled by external functions instead.
 
 Imagine the following functions $get_{f_i}$ and $update_{f_i}$ which does the needed data extraction and updating for the
-function f_i. For the previous example, the functions $get_{f_p}$ and $update_{f_p}$ would look as follows.
+function $f_i$. For the previous example, the functions $get_{f_p}$ and $update_{f_p}$ would look as follows.
 
 #+BEGIN_EXAMPLE
 get(#d{b=B,d=D}) -> [B,D].
@@ -975,7 +967,7 @@ get(#d{b=F}) -> [F].
 update(_,D) -> D.
 #+END_EXAMPLE
 
-we have now decoupled the data structure which is convenient to use while passing data to many functions, from how
+we have now decoupled the data structure which is convenient to use while passing data to many functions from how
 we pass data to one function. This is a big destinction. get and update are cousins to the lens ({{{LENSES()}}}) 
 concept from Haskell which facilitates access and update of data structures, allowing the computations to remain unaware
 of how the data got there, or where it is going.
@@ -1012,8 +1004,7 @@ seq([{F, Get, Update}|T],Data) ->
 
 This is syntactically cumbersome and counteracts the clarity that was gained when using the seq style to begin with. 
 As we pass a 3-tuple to seq in place of the calculator functions, we can now generate this structure from a function call
-instead. Thus we take the first step towards simplifying the overhead of using the get/update mechanism for managing the 
-data.
+instead. Thus we can now try to collapse nested structures by using the proposed skeleton of the better seq style.
 \newpage
 #+BEGIN_EXAMPLE
 seq([f_p(), 
@@ -1040,4 +1031,8 @@ f_n() ->
    fun(D) -> D end}.
 #+END_EXAMPLE
 
-
+The most atractive gain is that the computations are argument-object agnostic and only cares for calculations 
+using the data which is absolutely essential. We can exchang the data-carrying type from record, to list,
+to whatever, and we only need to make modifications in the $get_{f_i}$ and $update_{f_i}$ functions and the 
+calculations are kept intact. We have now made the method with which we make data cohesive - totally transparent
+to our calculations and removed all traces of coupling from them.
