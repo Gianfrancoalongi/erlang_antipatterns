@@ -284,7 +284,6 @@ f(R) ->
 
 \newpage
 
-
 * Unnecessary Term Expansion (UTE)
 
 Unnecessary Term Expansions is the general cousin of URE, where function heads are made unreadable 
@@ -764,3 +763,94 @@ The determine_connectivity_mode/1 function is also very easy to test and would b
 candidate function for TDD.
 
 
+* Not an Antipattern - (Seq)uence And (Rec)ursive style 
+ 
+In the chapter Variable Binding ad Nauseum, we touched on the subject of seq style programming.
+This chapter explores the seq concept further and also defines rec, a cousin of seq that allows
+for an elegant recursive programming style. 
+
+** Seq
+Seq takes a list of functions, some initial data
+
+#+BEGIN_EXAMPLE
+ Seq :: [F] x D -> D
+#+END_EXAMPLE
+
+and it folds the functions over the data, effectively applying each and every function on the input 
+from the previous function; for the initial function this means the initial data, as there is no other 
+function that can be called to produce the data.
+
+#+BEGIN_EXAMPLE
+ D_0 = Input data
+ D_1 = f_1(D_0)
+ D_2 = f_2(D_1)
+ ...           
+ D_n = f_n(D_(n-1))
+#+END_EXAMPLE
+
+
+*** Function families
+
+Every function F which is passed to Seq can be classified as beloning to one of three function families f_p, f_m or f_n.
+
+**** f_p - Pure family 
+This is a functionally pure function, the return value is used to update the input data to Seq on which we fold our
+functions. The only reason for using this function is for the pure calculation done with the use of the input data that
+is sent to it.
+
+#+BEGIN_EXAMPLE
+f(X) ->
+   X + 1.
+#+END_EXAMPLE
+
+**** f_m - Mixed family
+This is an functionally impure family of functions, meaning that they have side effects, but the returned 
+value is still of interest for the next function in seq. As this has a side-effect, we can think of this family
+of functions as updating an implicit global state (omega). 
+
+#+BEGIN_EXAMPLE
+f(X) ->
+  a ! X,
+  X + 1.
+#+END_EXAMPLE
+
+**** f_n - Nullifier family
+This is a family of functions which has an unused return value, meaning we do not care about the return value of the
+function. The function is only invoked due to the side effects of the function. Thus, the result is nullified in the 
+eyes of the next function to be invoked in the seq chain.
+
+#+BEGIN_EXAMPLE
+f(X) ->
+  a ! X.
+#+END_EXAMPLE
+
+
+
+
+
+
+
+
+
+
+
+
+
+*** Function class family diagram 
+
+All families relate to the Seq input data D and the global state Omega in some way.
+In the diagram below, an arrow from D -> to a family means that this family uses the data D for its calculation.
+An arrow from a family f_m -> to either D or Omega means that this family has a return value that updates the 
+data in D or Omega.
+
+#+BEGIN_EXAMPLE
+
+   D <--------\     Omega
+   |          |       ^
+   |--> f_p --|       |
+   |          |       |
+   |--> f_m --/-------|
+   |                  |
+   \--> f_n-----------/
+
+#+END_EXAMPLE
