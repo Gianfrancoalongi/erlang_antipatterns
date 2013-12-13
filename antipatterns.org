@@ -857,7 +857,7 @@ data in D or Omega.
 
 *** The problem of passing and updating data
 
-We know that all functions f_i in [F] passed to Seq will most likely not operate on the same data.
+We know that all functions f_i $\in$ [F] passed to Seq will most likely not operate on the same data.
 The naive way is to pass one large data structure to each function f_i, thus creating a uniform set of functions
 with arity 1, where each one receives and returns the same data structure, but with some minor changes.
 If we choose such an approach, the functions that are part of f_p and f_m will return an updated version of the data
@@ -907,6 +907,25 @@ f_n([F]) ->
 #+END_EXAMPLE
 
 They certainly look cleaner, but how shall we now handle the data passing of the right data and the data updating of the 
-right data in D?
+right data in D? This is where we need function specific get and update functions. The explicit extraction and updating of
+values from/to the record #d\{\\} must now be handled by external functions instead.
+
+Imagine the following functions $get_{f_i}$ and $update_{f_i}$ which does the needed data extraction and updating for the
+function f_i. For the previous example, the functions $get_{f_p}$ and $update_{f_p}$ would look as follows.
+
+#+BEGIN_EXAMPLE
+get(#d{b=B,d=D}) -> [B,D].
+update(Z,D) -> D#d{z=Z}.
+#+END_EXAMPLE
+
+for the nullifier, the same functions $get_{f_n}$ and $update_{f_n}$ would look as follows.
+
+#+BEGIN_EXAMPLE
+get(#d{b=F}) -> [F].
+update(_,D) -> D.
+#+END_EXAMPLE
+
+we have now decoupled the data structure which is convenient to use while passing data to many functions, from how
+we pass data to one function. This is a big destinction.
 
 
