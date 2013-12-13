@@ -3,6 +3,7 @@
 #+MACRO: PARTIAL Partial Application, Wikipedia
 #+MACRO: MONAD Monad, Haskell Wiki
 #+MACRO: THECLEANCODER Robert C.Martin 2011
+#+MACRO: LENSES Haskell Wiki
 #+OPTIONS: ^:{}
 
 * Introduction
@@ -926,6 +927,37 @@ update(_,D) -> D.
 #+END_EXAMPLE
 
 we have now decoupled the data structure which is convenient to use while passing data to many functions, from how
-we pass data to one function. This is a big destinction.
+we pass data to one function. This is a big destinction. get and update are cousins to the lens ({{{LENSES()}}}) 
+concept from Haskell which facilitates access and update of data structures, allowing the computations to remain unaware
+of how the data got there, or where it is going.
 
+#+BEGIN_EXAMPLE
+ data D
+      --------------------
+     |  ____         _    |
+     | |    |       |_|   |
+     | |____|        ^    |
+     |__|____________|____|
+	|            |
+	|get         |update
+	|            | 
+	v            |
+	\____f_p ____/
+#+END_EXAMPLE
+
+Now that we have this model for decoupling calculators from the way we carry data, we can take the first stab at 
+utilizing it, we obviously need to modify seq so that it not only folds the functions, but also utilizes the right
+get and update functions. To make matters simple, we start by supplying a 3-tuple instead of just the calculator 
+function. As we know how the get and update functions look like, this only shows the modified seq function.
+
+#+BEGIN_EXAMPLE
+seq([{fun get_f_p/1, fun f_p/1, fun update_f_p/1},
+     {fun get_f_m/1, fun f_m/1, fun update_f_m/1},
+     {fun get_f_n/1, fun f_n/1, fun update_f_n/1},
+    ], Data).
+
+seq([],Data) -> Data;
+seq([{Get,F, Update}|T],Data) ->
+  seq(T,Update(F(Get(Data)),Data)).
+#+END_EXAMPLE
 
