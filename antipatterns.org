@@ -1039,7 +1039,7 @@ to our calculations and removed all traces of coupling from them.
 \newpage
 * Not an Antipattern - (Rec)ursive
 
-Seq is as the name describes sequential, and is not intended for recursive computations.
+Seq is as the name describes sequential, and not intended for recursive computations.
 For this, we introduce rec. Rec takes a list of functions, a boolean predicate P $\in f_p$ and
 some initial data.
 
@@ -1050,13 +1050,13 @@ Rec :: [F] x P x D -> D
 
 we can model rec with the use of seq, the transformation will be shown in steps.
 First, lets start by drawing the call tree of rec, it is reasonable that the predicate
-is a stop-condition which is always evaluated first. If the result is 't', the recursion
-ends, returning the data. If the result is 'f', the recursion continues.
+is a stop-condition which is always evaluated first. If the result is T, the recursion
+ends, returning the data. If the result is F, the recursion continues.
 
 #+BEGIN_EXAMPLE
    P D <---------------------
     |  \                     \
-    |t  \f                   |
+   T|   \F                   |
     V    V                  /
    D      D' = f_1...f_n D--
 #+END_EXAMPLE
@@ -1067,7 +1067,7 @@ can be replaced with seq in an elegant manner
 #+BEGIN_EXAMPLE
    P D <----------
     |  \           \
-    |t  \f          |
+   T|   \F          |
     V    V         /
    D      seq F D -
 #+END_EXAMPLE
@@ -1108,7 +1108,8 @@ echo(Sock) ->
   end.
 #+END_EXAMPLE
 
-It is very simple to realize that the end condition is that we recieved "die".
+We will now rewrite this little server using rec-style programming with composite seq
+functions. It is very simple to realize that the end condition is that we recieved "die".
 Thus, received == "die" will be the predicate.
 
 #+BEGIN_EXAMPLE
@@ -1175,7 +1176,7 @@ close_the_connection(S) ->
 The point here is that we can very quickly get a very good understanding of the echo_servers 
 inner workings at a glance. Only by reading the names of the functions in one quick succession. 
 We can also easily Unit Test each seq function which the rec will utilize. Granted, it looks like 
-we have more code, but it is very easy to extend, just add another function in the appropriate place 
+we have a little more code, but it is very easy to extend, just add another function in the appropriate place 
 in the call chain. It is also easy to isolate and correct bugs, each component function is short and 
 easily understood.
 
@@ -1189,7 +1190,7 @@ to 'normal' non-rec/seq style where you need to pass over details in order to co
 As large legacy systems accumulate more and more logic, it is of great interest to have a style
 and design that facilitates quick comprehension without forcing the developers to understand small
 insignificant details to get the whole picture. When it comes to quickly understanding flow and even 
-more importantly the 'intent' (the why) I am sure you would rather read this
+more importantly the 'intent' (the why), I am sure you would rather read this
 
 #+BEGIN_EXAMPLE
   [fun receive_message_from_client/1,
