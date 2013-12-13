@@ -951,13 +951,44 @@ get and update functions. To make matters simple, we start by supplying a 3-tupl
 function. As we know how the get and update functions look like, this only shows the modified seq function.
 
 #+BEGIN_EXAMPLE
-seq([{fun get_f_p/1, fun f_p/1, fun update_f_p/1},
-     {fun get_f_m/1, fun f_m/1, fun update_f_m/1},
-     {fun get_f_n/1, fun f_n/1, fun update_f_n/1},
+seq([{fun f_p/1, fun get_f_p/1, fun update_f_p/1},
+     {fun f_m/1, fun get_f_m/1, fun update_f_m/1},
+     {fun f_n/1, fun get_f_n/1, fun update_f_n/1},
     ], Data).
 
 seq([],Data) -> Data;
-seq([{Get,F, Update}|T],Data) ->
+seq([{F, Get, Update}|T],Data) ->
   seq(T,Update(F(Get(Data)),Data)).
 #+END_EXAMPLE
+
+This is syntactically cumbersome and counteracts the clarity that was gained when using the seq style to begin with. 
+As we pass a 3-tuple to seq in place of the calculator functions, we can now generate this structure from a function call
+instead. Thus we take the first step towards simplifying the overhead of using the get/update mechanism for managing the 
+data.
+\newpage
+#+BEGIN_EXAMPLE
+seq([f_p(), 
+     f_m(),
+     f_n()], Data).
+
+seq([],Data) -> Data;
+seq([{F, Get, Update}|T],Data) ->
+  seq(T,Update(F(Get(Data)),Data)).
+
+f_p() ->
+ {fun f_p/1, 
+  fun(D#d{b=B,d=D})-> [B,D] end,
+  fun(Z,D) -> D#d{z=Z} end}.
+
+f_m() ->
+  {fun f_m/1, 
+   fun(D#d{e=E,f=F,k=K}) -> [E,F,K] end,
+   fun(X,D) -> D#d{x=X} end}.
+
+f_n() ->
+  {fun f_n/1, 
+   fun(D#d{f=F}) -> [F] end,
+   fun(D) -> D end}.
+#+END_EXAMPLE
+
 
