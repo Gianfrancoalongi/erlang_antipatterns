@@ -763,7 +763,7 @@ Notice how the backup_session/2 code conveys intent in a much better way.
 The determine_connectivity_mode/1 function is also very easy to test and would be a perfect
 candidate function for TDD.
 
-
+\newpage
 * Not an Antipattern - (Seq)uence
  
 In the chapter Variable Binding ad Nauseum, we touched on the subject of seq style programming.
@@ -789,6 +789,58 @@ function that can be called to produce the data.
  D_n = f_n(D_(n-1))
 #+END_EXAMPLE
 
+*** Why Seq-style programming
+
+Seq style programming is nice as it allows us to give longer function names without compromising clarity - this due to the
+line-length being used fully for a function name and making all variable bindings and arguments implicit.
+We can thus rewrite code from this unhelpfull format
+
+#+BEGIN_EXAMPLE
+send_msg(Msg) ->
+  case build_pkt(Msg) of
+    {ok,Bin} ->
+       tranceiver:send(Bin)
+    Err ->
+       Err
+  end.
+
+build_pkt(Msg) ->
+  case detrm_routing(Msg) of
+    {ok, RoutingData} ->
+       build_pkt(Msg, RoutingData);
+    Err ->
+        Err
+  end.
+
+build_pkt(Msg, RoutingData) ->
+  case build_hdrs(Msg, RoutingData) of
+     {ok, Hdrs} ->
+        build_pkt(Msg, RoutingData, Hdrs);
+     Err ->
+        Err
+  end.
+.... 
+#+END_EXAMPLE
+
+into a collapsed format, where each line is fully dedicated to showing the function names, which are intent-bearing.
+This new format would then look like this instead
+
+#+BEGIN_EXAMPLE
+send_msg(Msg) ->
+  seq([fun create_packet_skeleton/1,
+       fun determine_routing_data/1,
+       fun determine_via_headers/1,
+       fun determine_contact_header/1,
+       fun set_via_headers/1,
+       fun set_contact_headers/1,
+       fun build_binary/1,
+       fun send_binary_via_tranceiver/1,
+       get_configuration()).
+#+END_EXAMPLE
+
+Not only do we observe this benefit, we also notice that collapsing the nesting increases maintainability 
+and allows for a programming style where the underlying, hidden logic becomes visible and available.
+See the example code in the end of the VBAN chapter as an example.
 
 *** Function families
 
@@ -824,9 +876,6 @@ eyes of the next function to be invoked in the seq chain.
 f(X) ->
   a ! X.
 #+END_EXAMPLE
-
-
-
 
 
 
