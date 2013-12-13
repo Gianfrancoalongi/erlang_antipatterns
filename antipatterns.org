@@ -1005,7 +1005,7 @@ seq([{F, Get, Update}|T],Data) ->
 This is syntactically cumbersome and counteracts the clarity that was gained when using the seq style to begin with. 
 As we pass a 3-tuple to seq in place of the calculator functions, we can now generate this structure from a function call
 instead. Thus we can now try to collapse nested structures by using the proposed skeleton of the better seq style.
-\newpage
+
 #+BEGIN_EXAMPLE
 seq([f_p(), 
      f_m(),
