@@ -763,11 +763,11 @@ The determine_connectivity_mode/1 function is also very easy to test and would b
 candidate function for TDD.
 
 
-* Not an Antipattern - (Seq)uence And (Rec)ursive style 
+* Not an Antipattern - (Seq)uence
  
 In the chapter Variable Binding ad Nauseum, we touched on the subject of seq style programming.
-This chapter explores the seq concept further and also defines rec, a cousin of seq that allows
-for an elegant recursive programming style. 
+This chapter explores the seq concept further and lays the foundation for the theory needed when analysing this
+further into the rec style (a cousin of seq that allows for an elegant recursive programming style).
 
 ** Seq
 Seq takes a list of functions, some initial data
