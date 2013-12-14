@@ -1041,8 +1041,7 @@ to our calculations and removed all traces of coupling from them.
 
 We can accomodate error handling and short-circuit seq style programming, bringing us close to Haskell's
 Maybe monad by requiring all composite functions $f_i \in$ [F] to return either \{ok,Result\} or \{error,Reason\}.
-We can still utilize the specific $get_{f_i}/update_{f_i}$ functions to work with the data. The Term in \{error,Term\} 
-is the error reason we want to propagate unto the rest of the system.
+We can still utilize the specific $get_{f_i}/update_{f_i}$ functions to work with the data.
 
 We now define short circuit Seq which can handle error conditions. 
 
@@ -1059,10 +1058,7 @@ seq([{F,G,U}|Fs],Data) ->
 #+END_EXAMPLE
 
 This definition shows that the sequence ends when either there are no more functions to apply (like before),
-or when there is an error. This is preferrable to try/catch programming that will potentially hide more serious errors,
-makes tracing hard, and also incurs a slight performance penalty on run-time. Instead, write proper functions that
-either return \{error,Reason\} or \{ok,Result\}.
-
+or when there is an error. This is preferrable to try/catch programming that will potentially hide more serious errors.
 Consider the following code for trying to perform a transaction between two accounts from different banks, as 
 you can see, there are plenty of things that can 'fail' (cause the transaction to abort).
 
@@ -1080,8 +1076,7 @@ private_transaction({FromBank,FromAccount}=From,
       ok = send_request_to_bank(credit,ToBankID,ToAccount,Amount,Currency),
       transaction_log:record(FromBank,ToBank,Payment)
   catch
-      _:_ ->
-        transaction_log:error("Transaction not performed",[From,To,Payment])
+      %% Error ....
   end.       
 #+END_EXAMPLE
 
@@ -1101,7 +1096,7 @@ private_transaction(Payment_data) ->
       ],Payment_data).
 #+END_EXAMPLE
 
-The implicit guarantee here is that every function returns {ok,Data} or {error,Reason} as stated
+The implicit assumption here is that every function returns {ok,Data} or {error,Reason} as stated
 previously. We can also test every function $f_i \in$ [F] and compose our system of pure and well-behaved
 functions.
 \newpage
