@@ -1037,6 +1037,74 @@ to whatever, and we only need to make modifications in the $get_{f_i}$ and $upda
 calculations are kept intact. We have now made the method with which we make data cohesive - totally transparent
 to our calculations and removed all traces of coupling from them.
 \newpage
+*** Short circuit Seq style
+
+We can accomodate error handling and short-circuit seq style programming, bringing us close to Haskell's
+Maybe monad by requiring all composite functions $f_i \in$ [F] to return either \{ok,Result\} or \{error,Reason\}.
+We can still utilize the specific $get_{f_i}/update_{f_i}$ functions to work with the data. The Term in \{error,Term\} 
+is the error reason we want to propagate unto the rest of the system.
+
+We now define short circuit Seq which can handle error conditions. 
+
+#+BEGIN_EXAMPLE
+seq([],Data) -> 
+   Data;
+seq([{F,G,U}|Fs],Data) ->
+ case F(G(Data)) of
+   {ok,Result} ->
+      seq(Fs,U(Result,Data));
+   Error ->
+      Error
+ end.
+#+END_EXAMPLE
+
+This definition shows that the sequence ends when either there are no more functions to apply (like before),
+or when there is an error. This is preferrable to try/catch programming that will potentially hide more serious errors,
+makes tracing hard, and also incurs a slight performance penalty on run-time. Instead, write proper functions that
+either return \{error,Reason\} or \{ok,Result\}.
+
+Consider the following code for trying to perform a transaction between two accounts from different banks, as 
+you can see, there are plenty of things that can 'fail' (cause the transaction to abort).
+
+#+BEGIN_EXAMPLE
+private_transaction({FromBank,FromAccount}=From,
+                    {ToBank,ToAccount}=To,
+                    {Amount,Currency}=Payment) ->
+  try
+      ok = is_amount_valid(Amount),
+      {ok,FromBankID} = get_bank_id(FromBank),
+      {ok,ToBankID} = get_bank_id(ToBank),     
+      is_valid(get_prefix(FromAccount),FromBankID),
+      is_valid(get_prefix(ToAccount),ToBankID),
+      ok = send_request_to_bank(debit,FromBankID,FromAccount,Amount,Currency),      
+      ok = send_request_to_bank(credit,ToBankID,ToAccount,Amount,Currency),
+      transaction_log:record(FromBank,ToBank,Payment)
+  catch
+      _:_ ->
+        transaction_log:error("Transaction not performed",[From,To,Payment])
+  end.       
+#+END_EXAMPLE
+
+Now, we would instead like to write this using a short-circuit seq programming style that facilitates maintainbility
+and reading of the source code.
+
+#+BEGIN_EXAMPLE
+private_transaction(Payment_data) ->
+  seq([fun verify_that_amount_is_valid/1,
+       fun verify_that_from_bank_exists/1,
+       fun verify_that_to_bank_exists/1,
+       fun verify_that_from_account_exists/1,
+       fun verify_that_to_account_exists/1,
+       fun verify_that_sending_bank_accepts_debit/1,
+       fun verify_that_receiving_bank_accepts_credit/1,
+       fun log_transaction/1
+      ],Payment_data).
+#+END_EXAMPLE
+
+The implicit guarantee here is that every function returns {ok,Data} or {error,Reason} as stated
+previously. We can also test every function $f_i \in$ [F] and compose our system of pure and well-behaved
+functions.
+\newpage
 * Not an Antipattern - (Rec)ursive
 
 Seq is as the name describes sequential, and not intended for recursive computations.
@@ -1179,7 +1247,6 @@ We can also easily Unit Test each seq function which the rec will utilize. Grant
 we have a little more code, but it is very easy to extend, just add another function in the appropriate place 
 in the call chain. It is also easy to isolate and correct bugs, each component function is short and 
 easily understood.
-
 
 *** Simplifies accelerated comprehension
 
